@@ -13,8 +13,9 @@
 #define LCD_DC    GPIO_P25
 #define LCD_RST   GPIO_P24
 
-// Driven as outputs by the stock display init and toggled on sleep/wake;
-// one of them is the backlight. Roles not pinned down yet.
+// Active low: the stock firmware drives all four LOW with the screen on and
+// HIGH with it off. One of them is the backlight; the others' roles are not
+// pinned down yet.
 #define LCD_PWR_A GPIO_P01
 #define LCD_PWR_B GPIO_P02
 #define LCD_PWR_C GPIO_P16
