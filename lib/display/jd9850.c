@@ -36,9 +36,8 @@ static const uint8_t init_seq[] = {
     0x3A, 1, 0x05,                               // RGB565
 };
 
-// Driven HIGH by the stock firmware with the screen off and LOW with it on;
-// one of them is the backlight.
-static const gpio_pin_e power_pins[] = {LCD_PWR_A, LCD_PWR_B, LCD_PWR_C, LCD_PWR_D};
+// Backlight pins, active low (see board.h).
+static const gpio_pin_e power_pins[] = {LCD_BL_P01, LCD_BL_P02, LCD_BL_P16, LCD_BL_P17};
 
 static hal_spi_t spi = {.spi_index = SPI0};
 

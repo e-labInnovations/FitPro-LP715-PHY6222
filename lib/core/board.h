@@ -13,13 +13,15 @@
 #define LCD_DC    GPIO_P25
 #define LCD_RST   GPIO_P24
 
-// Active low: the stock firmware drives all four LOW with the screen on and
-// HIGH with it off. One of them is the backlight; the others' roles are not
-// pinned down yet.
-#define LCD_PWR_A GPIO_P01
-#define LCD_PWR_B GPIO_P02
-#define LCD_PWR_C GPIO_P16
-#define LCD_PWR_D GPIO_P17
+// Backlight: four active-low GPIOs, each sinking part of the LED current
+// through its own resistor. All LOW = full brightness (what the stock firmware
+// does with the screen on), all HIGH = off. Measured on the watch: P17 alone
+// lights the screen visibly; P01, P02 or P16 alone look dark but each adds
+// brightness in combination.
+#define LCD_BL_P01 GPIO_P01
+#define LCD_BL_P02 GPIO_P02
+#define LCD_BL_P16 GPIO_P16
+#define LCD_BL_P17 GPIO_P17
 
 // UART log (also the flashing port).
 #define UART_TX   GPIO_P09
