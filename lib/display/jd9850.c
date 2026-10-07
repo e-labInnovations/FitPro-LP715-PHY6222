@@ -149,15 +149,35 @@ void lcd_off(void) {
     write_cmd(0x10, NULL, 0);   // sleep in
 }
 
+static inline void put_pixel(uint16_t c) {
+    spi_put(c >> 8);
+    spi_put(c);
+}
+
+// Clips x/y/w/h to the screen; returns false if nothing is left.
+static bool clip(int *x, int *y, int *w, int *h) {
+    if (*x < 0) {
+        *w += *x;
+        *x = 0;
+    }
+    if (*y < 0) {
+        *h += *y;
+        *y = 0;
+    }
+    if (*x + *w > LCD_WIDTH)
+        *w = LCD_WIDTH - *x;
+    if (*y + *h > LCD_HEIGHT)
+        *h = LCD_HEIGHT - *y;
+    return *w > 0 && *h > 0;
+}
+
 void lcd_fill_rect(int x, int y, int w, int h, uint16_t color) {
-    if (w <= 0 || h <= 0)
+    if (!clip(&x, &y, &w, &h))
         return;
     set_window(x, y, x + w - 1, y + h - 1);
     begin_pixels();
-    for (int i = w * h; i > 0; i--) {
-        spi_put(color >> 8);
-        spi_put(color);
-    }
+    for (int i = w * h; i > 0; i--)
+        put_pixel(color);
     end_pixels();
 }
 
@@ -165,12 +185,48 @@ void lcd_fill(uint16_t color) {
     lcd_fill_rect(0, 0, LCD_WIDTH, LCD_HEIGHT, color);
 }
 
-void lcd_draw_bitmap(int x, int y, int w, int h, const uint16_t *pixels) {
+void lcd_draw_pixel(int x, int y, uint16_t color) {
+    lcd_fill_rect(x, y, 1, 1, color);
+}
+
+void lcd_draw_image_ex(int x, int y, int w, int h, const uint16_t *pixels, int stride) {
+    int x0 = x, y0 = y;
+    if (!clip(&x, &y, &w, &h))
+        return;
+    pixels += (y - y0) * stride + (x - x0);
     set_window(x, y, x + w - 1, y + h - 1);
     begin_pixels();
-    for (int i = 0; i < w * h; i++) {
-        spi_put(pixels[i] >> 8);
-        spi_put(pixels[i]);
+    for (int row = 0; row < h; row++, pixels += stride)
+        for (int col = 0; col < w; col++)
+            put_pixel(pixels[col]);
+    end_pixels();
+}
+
+void lcd_draw_image(int x, int y, int w, int h, const uint16_t *pixels) {
+    lcd_draw_image_ex(x, y, w, h, pixels, w);
+}
+
+void lcd_draw_image_rle(int x, int y, int w, int h, const uint16_t *rle, int runs) {
+    int vx = x, vy = y, vw = w, vh = h;
+    if (!clip(&vx, &vy, &vw, &vh))
+        return;
+    set_window(vx, vy, vx + vw - 1, vy + vh - 1);
+    begin_pixels();
+    // Walk the runs over the full image, sending only the pixels that fall in
+    // the clipped window, so exactly vw*vh pixels reach the panel.
+    int col = 0, row = 0;
+    for (int r = 0; r < runs && row < h; r++) {
+        uint16_t count = rle[r * 2], color = rle[r * 2 + 1];
+        while (count--) {
+            int sx = x + col, sy = y + row;
+            if (sx >= vx && sx < vx + vw && sy >= vy && sy < vy + vh)
+                put_pixel(color);
+            if (++col == w) {
+                col = 0;
+                if (++row == h)
+                    break;
+            }
+        }
     }
     end_pixels();
 }
