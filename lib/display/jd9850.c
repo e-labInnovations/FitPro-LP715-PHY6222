@@ -45,28 +45,24 @@ static hal_spi_t spi = {.spi_index = SPI0};
 #define SSI_SR_TFNF 0x02
 #define SSI_SR_TFE  0x04
 
-static void spi_wait_idle(void)
-{
+static void spi_wait_idle(void) {
     while (!(AP_SPI0->SR & SSI_SR_TFE) || (AP_SPI0->SR & SSI_SR_BUSY))
         ;
 }
 
-static inline void spi_put(uint8_t b)
-{
+static inline void spi_put(uint8_t b) {
     while (!(AP_SPI0->SR & SSI_SR_TFNF))
         ;
     AP_SPI0->DataReg = b;
 }
 
-static void out_pin(gpio_pin_e pin, uint8_t level)
-{
+static void out_pin(gpio_pin_e pin, uint8_t level) {
     hal_gpio_fmux(pin, Bit_DISABLE);
     hal_gpio_pin_init(pin, GPIO_OUTPUT);
     hal_gpio_write(pin, level);
 }
 
-static void write_cmd(uint8_t cmd, const uint8_t *data, int n)
-{
+static void write_cmd(uint8_t cmd, const uint8_t *data, int n) {
     hal_gpio_write(LCD_CS, 0);
     hal_gpio_write(LCD_DC, 0);
     spi_put(cmd);
@@ -78,8 +74,7 @@ static void write_cmd(uint8_t cmd, const uint8_t *data, int n)
     hal_gpio_write(LCD_CS, 1);
 }
 
-static void set_window(int x0, int y0, int x1, int y1)
-{
+static void set_window(int x0, int y0, int x1, int y1) {
     uint8_t c[4] = {x0 >> 8, x0, x1 >> 8, x1};
     uint8_t r[4] = {y0 >> 8, y0, y1 >> 8, y1};
     write_cmd(0x2A, c, 4);
@@ -87,8 +82,7 @@ static void set_window(int x0, int y0, int x1, int y1)
 }
 
 // Starts a RAMWR (0x2C); the caller streams pixels then calls end_pixels().
-static void begin_pixels(void)
-{
+static void begin_pixels(void) {
     hal_gpio_write(LCD_CS, 0);
     hal_gpio_write(LCD_DC, 0);
     spi_put(0x2C);
@@ -96,14 +90,12 @@ static void begin_pixels(void)
     hal_gpio_write(LCD_DC, 1);
 }
 
-static void end_pixels(void)
-{
+static void end_pixels(void) {
     spi_wait_idle();
     hal_gpio_write(LCD_CS, 1);
 }
 
-void lcd_init(void)
-{
+void lcd_init(void) {
     for (unsigned i = 0; i < sizeof(power_pins) / sizeof(power_pins[0]); i++)
         out_pin(power_pins[i], 1);
     out_pin(LCD_CS, 1);
@@ -140,8 +132,7 @@ void lcd_init(void)
     lcd_on();
 }
 
-void lcd_on(void)
-{
+void lcd_on(void) {
     write_cmd(0x11, NULL, 0);   // sleep out
     WaitMs(20);
     write_cmd(0x29, NULL, 0);   // display on
@@ -150,8 +141,7 @@ void lcd_on(void)
         hal_gpio_write(power_pins[i], 0);
 }
 
-void lcd_off(void)
-{
+void lcd_off(void) {
     for (unsigned i = 0; i < sizeof(power_pins) / sizeof(power_pins[0]); i++)
         hal_gpio_write(power_pins[i], 1);
     write_cmd(0x28, NULL, 0);   // display off
@@ -159,8 +149,7 @@ void lcd_off(void)
     write_cmd(0x10, NULL, 0);   // sleep in
 }
 
-void lcd_fill_rect(int x, int y, int w, int h, uint16_t color)
-{
+void lcd_fill_rect(int x, int y, int w, int h, uint16_t color) {
     if (w <= 0 || h <= 0)
         return;
     set_window(x, y, x + w - 1, y + h - 1);
@@ -172,13 +161,11 @@ void lcd_fill_rect(int x, int y, int w, int h, uint16_t color)
     end_pixels();
 }
 
-void lcd_fill(uint16_t color)
-{
+void lcd_fill(uint16_t color) {
     lcd_fill_rect(0, 0, LCD_WIDTH, LCD_HEIGHT, color);
 }
 
-void lcd_draw_bitmap(int x, int y, int w, int h, const uint16_t *pixels)
-{
+void lcd_draw_bitmap(int x, int y, int w, int h, const uint16_t *pixels) {
     set_window(x, y, x + w - 1, y + h - 1);
     begin_pixels();
     for (int i = 0; i < w * h; i++) {

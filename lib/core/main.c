@@ -19,8 +19,7 @@ ALIGN4_U8 g_largeHeap[LARGE_HEAP_SIZE];
 volatile uint8 g_clk32K_config;
 volatile sysclk_t g_spif_clk_config;
 
-static void hal_low_power_io_init(void)
-{
+static void hal_low_power_io_init(void) {
     // Everything floats except the UART lines; examples configure what they use.
     const ioinit_cfg_t ioInit[] = {
         {GPIO_P00, GPIO_FLOATING}, {GPIO_P01, GPIO_FLOATING}, {GPIO_P02, GPIO_FLOATING},
@@ -43,8 +42,7 @@ static void hal_low_power_io_init(void)
     subWriteReg(0x4000f014, 26, 26, 1); // hal_pwrmgr_LowCurrentLdo_enable()
 }
 
-static void hal_rfphy_init(void)
-{
+static void hal_rfphy_init(void) {
     g_rfPhyTxPower = RF_PHY_TX_POWER_0DBM;
     g_rfPhyPktFmt = PKT_FMT_BLE1M;
     g_rfPhyFreqOffSet = RF_PHY_FREQ_FOFF_00KHZ;
@@ -64,8 +62,7 @@ static void hal_rfphy_init(void)
     NVIC_SetPriority((IRQn_Type)TIM4_IRQn, IRQ_PRIO_HIGH); // LL_EXA_ADV
 }
 
-static void hal_init(void)
-{
+static void hal_init(void) {
     hal_low_power_io_init();
     clk_init(g_system_clk);
     hal_rtc_clock_config((CLK32K_e)g_clk32K_config);
@@ -75,8 +72,7 @@ static void hal_init(void)
     LOG_INIT();
 }
 
-int main(void)
-{
+int main(void) {
     g_system_clk = SYS_CLK_XTAL_16M;
     g_clk32K_config = CLK_32K_RCOSC;
     drv_irq_init();

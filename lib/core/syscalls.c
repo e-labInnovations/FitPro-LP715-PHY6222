@@ -9,22 +9,19 @@ extern int __heap_start__;
 extern int __heap_end__;
 static char *heap_end = (char *)&__heap_start__;
 
-int _write(int file, char *ptr, int len)
-{
+int _write(int file, char *ptr, int len) {
     (void)file;
     dbg_printf("%.*s", len, ptr);
     return len;
 }
 
-int _read(int file, char *ptr, int len)
-{
+int _read(int file, char *ptr, int len) {
     (void)file; (void)ptr; (void)len;
     errno = ENOSYS;
     return -1;
 }
 
-int _sbrk(int incr)
-{
+int _sbrk(int incr) {
     char *prev = heap_end;
     if (heap_end + incr > (char *)&__heap_end__) {
         errno = ENOMEM;

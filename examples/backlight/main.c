@@ -15,15 +15,13 @@ static const struct {
 #define N (sizeof(pins) / sizeof(pins[0]))
 
 // Box i red = pin i on; active == N lights all four.
-static void draw_markers(int active)
-{
+static void draw_markers(int active) {
     for (int i = 0; i < (int)N; i++)
         lcd_fill_rect(4 + i * 19, 4, 15, 15,
                       (i == active || active == (int)N) ? RGB565(255, 0, 0) : RGB565(64, 64, 64));
 }
 
-void app_init(void)
-{
+void app_init(void) {
     lcd_init();
     for (int i = 0; i < 8; i++)
         lcd_fill_rect(0, 20 + i * 17, LCD_WIDTH, 17,
@@ -34,8 +32,7 @@ void app_init(void)
     LOG("backlight test: each pin alone, then all four, then all off");
 }
 
-void app_update(void)
-{
+void app_update(void) {
     // Each pin alone on (box N lit = only that pin LOW), then all four on.
     for (int only = 0; only <= (int)N; only++) {
         for (int i = 0; i < (int)N; i++)

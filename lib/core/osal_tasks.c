@@ -17,8 +17,7 @@ const pTaskEventHandlerFn tasksArr[] = {
 const uint8 tasksCnt = sizeof(tasksArr) / sizeof(tasksArr[0]);
 uint16 *tasksEvents;
 
-void osalInitTasks(void)
-{
+void osalInitTasks(void) {
     uint8 taskID = 0;
 
     tasksEvents = (uint16 *)osal_mem_alloc(sizeof(uint16) * tasksCnt);

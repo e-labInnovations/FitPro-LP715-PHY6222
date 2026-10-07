@@ -1,0 +1,11 @@
+# House style for our own C code (lib/, examples/). Opening braces stay on the
+# same line, functions included.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlignConsecutiveMacros: true
+SortIncludes: false

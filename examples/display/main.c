@@ -13,8 +13,7 @@ static const uint16_t bands[] = {
 
 static int box_y;
 
-static void draw_bands(void)
-{
+static void draw_bands(void) {
     for (int i = 0; i < 8; i++)
         lcd_fill_rect(0, i * BAND_H, LCD_WIDTH, BAND_H, bands[i]);
     uint16_t w = RGB565(255, 255, 255);
@@ -24,8 +23,7 @@ static void draw_bands(void)
     lcd_fill_rect(LCD_WIDTH - 1, 0, 1, LCD_HEIGHT, w);
 }
 
-void app_init(void)
-{
+void app_init(void) {
     LOG("display test: init");
     lcd_init();
     uint32_t t = hal_systick();
@@ -34,8 +32,7 @@ void app_init(void)
         (int)(hal_systick() - t));
 }
 
-void app_update(void)
-{
+void app_update(void) {
     // Restore the band under the old box, then draw the box lower down.
     lcd_fill_rect((LCD_WIDTH - BOX) / 2, box_y, BOX, BOX, bands[box_y / BAND_H]);
     if (box_y / BAND_H != (box_y + BOX - 1) / BAND_H)

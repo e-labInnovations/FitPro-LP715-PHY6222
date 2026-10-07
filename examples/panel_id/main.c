@@ -9,16 +9,14 @@
 #define P_SDA  LCD_SDA
 #define P_SCL  LCD_SCL
 
-static void out(gpio_pin_e p, uint8_t v)
-{
+static void out(gpio_pin_e p, uint8_t v) {
     hal_gpio_fmux(p, Bit_DISABLE);
     hal_gpio_pin_init(p, GPIO_OUTPUT);
     hal_gpio_write(p, v);
 }
 
 // Send one command byte, give `dummy` extra clocks, then read n bytes.
-static void lcd_read(uint8_t cmd, int dummy, uint8_t *buf, int n)
-{
+static void lcd_read(uint8_t cmd, int dummy, uint8_t *buf, int n) {
     out(P_SCL, 1);
     out(P_SDA, 1);
     out(P_CS, 1);
@@ -61,8 +59,7 @@ static void lcd_read(uint8_t cmd, int dummy, uint8_t *buf, int n)
     out(P_SDA, 1);
 }
 
-static void lcd_reset(void)
-{
+static void lcd_reset(void) {
     out(P_DC, 1);
     out(P_CS, 1);
     out(P_RST, 1);
@@ -72,8 +69,7 @@ static void lcd_reset(void)
     WaitMs(200);
 }
 
-static const char *guess(const uint8_t *id)
-{
+static const char *guess(const uint8_t *id) {
     if (id[0] == 0x00 && id[1] == 0x91) return "GC91xx (stock profiles 0/2/5)";
     if (id[0] == 0x33 && id[1] == 0x30) return "NV3023/NV3025 (stock profiles 1/3)";
     if (id[0] == 0x98 && id[1] == 0x50) return "JD9850 (stock profile 6)";
@@ -83,13 +79,11 @@ static const char *guess(const uint8_t *id)
     return "unknown";
 }
 
-void app_init(void)
-{
+void app_init(void) {
     LOG("LP715 panel-ID probe");
 }
 
-void app_update(void)
-{
+void app_update(void) {
     uint8_t id[3], raw[4], d1[1], d2[1], d3[1];
 
     lcd_reset();
