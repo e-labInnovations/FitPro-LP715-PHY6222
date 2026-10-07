@@ -73,7 +73,7 @@ static void hal_init(void) {
 }
 
 int main(void) {
-    g_system_clk = SYS_CLK_XTAL_16M;
+    g_system_clk = CFG_SYS_CLK;   // set by SYS_CLK in sdk/phy6222.mk
     g_clk32K_config = CLK_32K_RCOSC;
     drv_irq_init();
     init_config();

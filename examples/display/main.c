@@ -28,19 +28,36 @@ void app_init(void) {
     lcd_init();
     uint32_t t = hal_systick();
     draw_bands();
+    // hal_systick() counts 625 us BLE slots
     LOG("bands drawn in %d ms: red green blue white cyan magenta yellow black, top to bottom",
-        (int)(hal_systick() - t));
+        (int)((hal_systick() - t) * 625 / 1000));
+}
+
+// Repaints rows y..y+h-1 of the box's column with the bands behind it.
+static void restore_bands(int y, int h) {
+    while (h > 0) {
+        int band = y / BAND_H;
+        int n = (band + 1) * BAND_H - y;
+        if (n > h)
+            n = h;
+        lcd_fill_rect((LCD_WIDTH - BOX) / 2, y, BOX, n, bands[band]);
+        y += n;
+        h -= n;
+    }
 }
 
 void app_update(void) {
-    // Restore the band under the old box, then draw the box lower down.
-    lcd_fill_rect((LCD_WIDTH - BOX) / 2, box_y, BOX, BOX, bands[box_y / BAND_H]);
-    if (box_y / BAND_H != (box_y + BOX - 1) / BAND_H)
-        lcd_fill_rect((LCD_WIDTH - BOX) / 2, (box_y / BAND_H + 1) * BAND_H, BOX,
-                      box_y + BOX - (box_y / BAND_H + 1) * BAND_H, bands[box_y / BAND_H + 1]);
+    // Draw the box at its new place first, then repaint only the strip it
+    // left. Erasing the whole box before redrawing it flickers whenever the
+    // panel's refresh scan passes between the two writes.
+    int old_y = box_y;
     box_y = (box_y + 4) % (LCD_HEIGHT - BOX);
     lcd_fill_rect((LCD_WIDTH - BOX) / 2, box_y, BOX, BOX, RGB565(128, 128, 128));
-    if (box_y == 0)
+    if (box_y > old_y) {
+        restore_bands(old_y, box_y - old_y);
+    } else {
+        restore_bands(old_y, BOX);
         LOG("box wrapped");
+    }
     WaitMs(50);
 }

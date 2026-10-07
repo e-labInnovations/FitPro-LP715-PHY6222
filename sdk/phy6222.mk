@@ -5,7 +5,8 @@
 #   SRC    = main.c
 #   include ../../sdk/phy6222.mk
 #
-# Optional: LIB_SRC (extra sources from lib/), BLE=1 (link the BLE host stack).
+# Optional: LIB_SRC (extra sources from lib/), BLE=1 (link the BLE host stack),
+# SYS_CLK (system clock, default SYS_CLK_DLL_48M; SYS_CLK_XTAL_16M also works).
 # Output: _build/$(TARGET).hex — flash it with `rdwr_phy62x2.py ... wh`.
 
 ROOT    := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
@@ -19,14 +20,22 @@ SIZE    = arm-none-eabi-size
 
 ARCH_FLAGS = -mcpu=cortex-m0 -mthumb
 
+SYS_CLK ?= SYS_CLK_DLL_48M
+
 DEFINES = \
 	-D__GCC -DARMCM0 -DPHY_MCU_TYPE=MCU_BUMBEE_M0 \
 	-DCFG_SLEEP_MODE=PWR_MODE_SLEEP -DDEBUG_INFO=3 \
 	-DMTU_SIZE=240 -DMAX_NUM_LL_CONN=1 -DDEF_GAPBOND_MGR_ENABLE=0 \
-	-DTEST_RTC_DELTA=1 -DLL_DEBUG_NONE=1 -DCLK_16M_ONLY=1 -DSTACK_MAX_SRAM=1 \
+	-DTEST_RTC_DELTA=1 -DLL_DEBUG_NONE=1 -DSTACK_MAX_SRAM=1 -DCFG_SYS_CLK=$(SYS_CLK) \
 	-DBROADCASTER_CFG=0x01 -DOBSERVER_CFG=0x02 -DPERIPHERAL_CFG=0x04 -DCENTRAL_CFG=0x08 \
 	-DHOST_CONFIG=0x04 -DOSAL_CBTIMER_NUM_TASKS=1 -DENABLE_LOG_ROM_=0 \
 	-DOSALMEM_METRICS=0 -DUSE_FS=0 -DOTA_TYPE=OTA_TYPE_NONE
+
+# CLK_16M_ONLY strips the RF/sleep code paths for every other clock, so it may
+# only be set when the system really runs at 16 MHz.
+ifeq ($(SYS_CLK),SYS_CLK_XTAL_16M)
+DEFINES += -DCLK_16M_ONLY=1
+endif
 
 SDK_INC_DIRS = \
 	misc misc/CMSIS/include misc/CMSIS/device/phyplus \

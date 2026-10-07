@@ -96,7 +96,10 @@ include ../../sdk/phy6222.mk
 
 `main.c` provides `app_init()` (runs once) and `app_update()` (called in a
 loop). `lib/core` does the system bring-up (clocks, power manager, BLE
-controller, UART log on P9/P10 at 115200) before calling them:
+controller, UART log on P9/P10 at 115200) before calling them.
+
+The number in brackets at the start of each log line is `hal_systick()`,
+which counts 625 µs BLE slots, not milliseconds:
 
 ```c
 #include "app.h"
@@ -122,6 +125,7 @@ Options for `phy6222.mk`:
 | `SRC`     | The example's own sources                                 |
 | `LIB_SRC` | Extra sources from `lib/`, e.g. `display/jd9850.c`        |
 | `BLE=1`   | Also link the BLE host stack (GAP/GATT/L2CAP/SMP)         |
+| `SYS_CLK` | System clock, default `SYS_CLK_DLL_48M`; `SYS_CLK_XTAL_16M` also works. SPI runs at half of it, so 24 MHz by default |
 
 ---
 
