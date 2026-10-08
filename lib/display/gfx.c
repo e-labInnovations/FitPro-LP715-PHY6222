@@ -764,6 +764,23 @@ int16_t gfx_get_cursor_y(void) {
     return _cursor_y;
 }
 
+void gfx_print_int(int value) {
+    char buf[12];
+    int n = 0;
+    unsigned v = value < 0 ? -(unsigned)value : (unsigned)value;
+    do {
+        buf[n++] = '0' + v % 10;
+        v /= 10;
+    } while (v);
+    if (value < 0)
+        buf[n++] = '-';
+    char out[12];
+    for (int i = 0; i < n; i++)
+        out[i] = buf[n - 1 - i];
+    out[n] = 0;
+    gfx_print(out);
+}
+
 void gfx_println(const char *str) {
     gfx_print(str);
     _cursor_x = 0;
