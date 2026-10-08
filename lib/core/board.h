@@ -43,6 +43,11 @@
 // down yet — keep LOW.
 #define CHG_CTL   GPIO_P23
 
+// Motion: a ball/tilt switch, LOW at rest with the internal pull-up. Each
+// shake bounces it many times; the stock firmware counts a burst of pulses as
+// one event, with a 350 ms timeout (steps and shake-to-wake).
+#define MOTION    GPIO_P18
+
 // Heart-rate LED on the back: active LOW. The stock "heart rate" is fake: it
 // blinks this LED for up to 60 s and shows a value picked with osal_rand().
 #define HR_LED    GPIO_P00
