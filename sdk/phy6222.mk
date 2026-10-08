@@ -5,7 +5,8 @@
 #   SRC    = main.c
 #   include ../../sdk/phy6222.mk
 #
-# Optional: LIB_SRC (extra sources from lib/), BLE=1 (link the BLE host stack),
+# Optional: LIB_SRC (extra sources from lib/), SDK_EXTRA (extra SDK driver sources,
+# e.g. components/driver/adc/adc.c), BLE=1 (link the BLE host stack),
 # SYS_CLK (system clock, default SYS_CLK_DLL_48M; SYS_CLK_XTAL_16M also works).
 # Output: _build/$(TARGET).hex — flash it with `rdwr_phy62x2.py ... wh`.
 
@@ -69,6 +70,8 @@ SDK_SRC = \
 	components/driver/uart/uart.c components/driver/watchdog/watchdog.c \
 	components/driver/log/my_printf.c misc/jump_table.c \
 	misc/CMSIS/device/phyplus/phy6222_cstart.c misc/CMSIS/device/phyplus/phy6222_vectors.c
+
+SDK_SRC += $(SDK_EXTRA)
 
 ifdef BLE
 SDK_SRC += $(addprefix lib/ble_host/, \

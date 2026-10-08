@@ -124,6 +124,7 @@ Options for `phy6222.mk`:
 | `TARGET`  | Output name                                               |
 | `SRC`     | The example's own sources                                 |
 | `LIB_SRC` | Extra sources from `lib/`, e.g. `display/jd9850.c`        |
+| `SDK_EXTRA` | Extra SDK driver sources, e.g. `components/driver/adc/adc.c` |
 | `BLE=1`   | Also link the BLE host stack (GAP/GATT/L2CAP/SMP)         |
 | `SYS_CLK` | System clock, default `SYS_CLK_DLL_48M`; `SYS_CLK_XTAL_16M` also works. SPI runs at half of it, so 24 MHz by default |
 
