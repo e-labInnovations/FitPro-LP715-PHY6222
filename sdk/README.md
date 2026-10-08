@@ -125,8 +125,10 @@ Options for `phy6222.mk`:
 | `SRC`     | The example's own sources                                 |
 | `LIB_SRC` | Extra sources from `lib/`, e.g. `display/jd9850.c`        |
 | `SDK_EXTRA` | Extra SDK driver sources, e.g. `components/driver/adc/adc.c` |
-| `BLE=1`   | Also link the BLE host stack (GAP/GATT/L2CAP/SMP)         |
+| `BLE=1`   | Run the BLE stack under OSAL (see `lib/ble/ble.h`); `app_update()` is then called every 10 ms from a timer and must not block |
 | `SYS_CLK` | System clock, default `SYS_CLK_DLL_48M`; `SYS_CLK_XTAL_16M` also works. SPI runs at half of it, so 24 MHz by default |
+| `DEBUG_INFO` | Default 1: `LOG()` prints. 3 also enables the SDK's `AT_LOG`/`LOG_DEBUG`, which print from the radio interrupt and break BLE connections |
+| `SLEEP_MODE` | Default `PWR_MODE_NO_SLEEP`. Sleep needs a wake-up path in `lib/core` that does not exist yet; with `PWR_MODE_SLEEP` a BLE build reboots about a second after advertising starts |
 
 ---
 

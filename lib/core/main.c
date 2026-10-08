@@ -14,10 +14,42 @@
 extern void init_config(void);
 extern void app_osal_init(void);
 
+// OSAL heap. The BLE host allocates its connection buffers here; the stock
+// firmware gives it 8 KB (osal_mem_set_heap at 0x1fff627a).
+#ifdef CFG_BLE
+#define LARGE_HEAP_SIZE (8 * 1024)
+#else
 #define LARGE_HEAP_SIZE (4 * 1024)
+#endif
 ALIGN4_U8 g_largeHeap[LARGE_HEAP_SIZE];
 volatile uint8 g_clk32K_config;
 volatile sysclk_t g_spif_clk_config;
+
+#ifdef CFG_BLE
+#include "OSAL_Memory.h"
+#include "ll.h"
+#include "ll_def.h"
+#include "ll_buf.h"
+
+// Link-layer connection buffers, set up as the stock firmware does at
+// 0x1fff628c: one connection, 3 TX and 3 RX packets per event, BLE 5.1 packets,
+// a 2680-byte buffer. This SDK copy lacks the packet-length constants the ROM
+// uses, so each slot is sized generously (2720 bytes in all).
+#define BLE_MAX_CONN       1
+#define BLE_PKTS_PER_EVT_TX 3
+#define BLE_PKTS_PER_EVT_RX 3
+#define BLE_PKT_SLOT       272
+#define BLE_CONN_BUF_SIZE  \
+    (BLE_MAX_CONN * (BLE_PKTS_PER_EVT_TX * 2 + BLE_PKTS_PER_EVT_RX + 1) * BLE_PKT_SLOT)
+ALIGN4_U8 g_pConnectionBuffer[BLE_CONN_BUF_SIZE];
+llConnState_t pConnContext[BLE_MAX_CONN];
+
+static void ble_mem_init_config(void) {
+    osal_mem_set_heap((osalMemHdr_t *)g_largeHeap, LARGE_HEAP_SIZE);
+    LL_InitConnectContext(pConnContext, g_pConnectionBuffer, BLE_MAX_CONN, BLE_PKTS_PER_EVT_TX,
+                          BLE_PKTS_PER_EVT_RX, BLE_PKT_VERSION_5_1);
+}
+#endif
 
 static void hal_low_power_io_init(void) {
     // Everything floats except the UART lines; examples configure what they use.
@@ -56,6 +88,10 @@ static void hal_rfphy_init(void) {
         typedef void (*rom_fn)(void);
         ((rom_fn)0xa2e1)();
     }
+#ifdef CFG_BLE
+    ble_mem_init_config();
+    hal_rfPhyFreqOff_Set();
+#endif
     NVIC_SetPriority((IRQn_Type)BB_IRQn, IRQ_PRIO_REALTIME);
     NVIC_SetPriority((IRQn_Type)TIM1_IRQn, IRQ_PRIO_HIGH); // ll_EVT
     NVIC_SetPriority((IRQn_Type)TIM2_IRQn, IRQ_PRIO_HIGH); // OSAL_TICK

@@ -6,7 +6,8 @@
 #   include ../../sdk/phy6222.mk
 #
 # Optional: LIB_SRC (extra sources from lib/), SDK_EXTRA (extra SDK driver sources,
-# e.g. components/driver/adc/adc.c), BLE=1 (link the BLE host stack),
+# e.g. components/driver/adc/adc.c), BLE=1 (run the BLE stack under OSAL; app_update()
+# is then called every 10 ms and must not block — see lib/ble/ble.h),
 # SYS_CLK (system clock, default SYS_CLK_DLL_48M; SYS_CLK_XTAL_16M also works).
 # Output: _build/$(TARGET).hex — flash it with `rdwr_phy62x2.py ... wh`.
 
@@ -23,9 +24,18 @@ ARCH_FLAGS = -mcpu=cortex-m0 -mthumb
 
 SYS_CLK ?= SYS_CLK_DLL_48M
 
+# OSAL may only put the chip to sleep once lib/core restores state on wake-up;
+# until then a sleeping BLE build reboots about a second after advertising.
+SLEEP_MODE ?= PWR_MODE_NO_SLEEP
+
+# 1: LOG() prints. 3 also turns on the SDK's AT_LOG/LOG_DEBUG, which print from
+# inside the link layer's radio interrupt; a blocking 2-3 ms UART write there
+# breaks every BLE connection (supervision timeout after a few events).
+DEBUG_INFO ?= 1
+
 DEFINES = \
 	-D__GCC -DARMCM0 -DPHY_MCU_TYPE=MCU_BUMBEE_M0 \
-	-DCFG_SLEEP_MODE=PWR_MODE_SLEEP -DDEBUG_INFO=3 \
+	-DCFG_SLEEP_MODE=$(SLEEP_MODE) -DDEBUG_INFO=$(DEBUG_INFO) \
 	-DMTU_SIZE=240 -DMAX_NUM_LL_CONN=1 -DDEF_GAPBOND_MGR_ENABLE=0 \
 	-DTEST_RTC_DELTA=1 -DLL_DEBUG_NONE=1 -DSTACK_MAX_SRAM=1 -DCFG_SYS_CLK=$(SYS_CLK) \
 	-DBROADCASTER_CFG=0x01 -DOBSERVER_CFG=0x02 -DPERIPHERAL_CFG=0x04 -DCENTRAL_CFG=0x08 \
@@ -79,6 +89,12 @@ SDK_SRC += $(addprefix lib/ble_host/, \
 	gap_devmgr.c gap_linkmgr.c gap_peridevmgr.c gap_perilinkmgr.c gap_task.c gatt_client.c \
 	gatt_server.c gatt_task.c gatt_uuid.c l2cap_if.c l2cap_task.c l2cap_util.c linkdb.c \
 	sm_intpairing.c sm_mgr.c sm_pairing.c smp.c sm_rsppairing.c sm_task.c)
+# Peripheral role and the GAP/GATT servers; the controller and HCI are in ROM.
+SDK_SRC += components/profiles/Roles/peripheral.c components/profiles/Roles/gap.c \
+	components/profiles/Roles/gapgattserver.c components/profiles/GATT/gattservapp.c
+LIB_SRC += ble/ble.c
+DEFINES += -DCFG_BLE=1
+SDK_INC_DIRS += components/profiles/GATT
 endif
 
 SDK_ASM  = misc/CMSIS/device/phyplus/phy6222_start.s
