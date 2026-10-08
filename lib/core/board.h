@@ -43,6 +43,10 @@
 // down yet — keep LOW.
 #define CHG_CTL   GPIO_P23
 
+// Heart-rate LED on the back: active LOW. The stock "heart rate" is fake: it
+// blinks this LED for up to 60 s and shows a value picked with osal_rand().
+#define HR_LED    GPIO_P00
+
 // Factory-test strap: strong pull-up, read once at boot; LOW enters the stock
 // firmware's test mode.
 #define TEST_STRAP GPIO_P07
