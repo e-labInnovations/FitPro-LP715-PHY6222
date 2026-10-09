@@ -1,30 +1,47 @@
-# PHY6222 SDK Docker Environment
+# PHY6222 Build Environment
 
-Docker-based build environment for custom FitPro LP715 firmware. The same image
-works on Linux, macOS (Intel and Apple Silicon) and Windows.
+Everything needed to build firmware for the FitPro LP715 (Phyplus PHY6222):
 
-The image contains:
+| Path          | What                                                          |
+| ------------- | ------------------------------------------------------------- |
+| `phy6222/`    | Phyplus PHY62x2 SDK, from amir1387aht/phy6222_smartwatch       |
+| `phy6222.mk`  | Shared build rules every example includes                     |
+| `Dockerfile`  | Build image: ARM GCC and `make`, nothing else                 |
 
-- Debian bookworm
-- `gcc-arm-none-eabi` 12.2 + newlib (packaged for amd64 and arm64, so it runs
-  natively on Apple Silicon — no platform pin needed)
-- The Phyplus PHY62x2 SDK, taken from
-  [amir1387aht/phy6222_smartwatch](https://github.com/amir1387aht/phy6222_smartwatch)
-  at a pinned commit, installed at `/opt/phy6222_sdk` (`$SDK`)
-- `make`, `python3`
-
-The SDK is downloaded when the image is built, not stored in this repo.
+The SDK lives in the repo, not in the image, so builds don't depend on the
+upstream repo staying up, and an SDK patch is an ordinary commit that takes
+effect without rebuilding the image.
 
 ---
 
-## Build the Image
+## The Image
 
-```bash
-docker build -t phy6222-sdk sdk/
+```
+ghcr.io/e-labinnovations/phy6222-sdk
 ```
 
-To move to a newer SDK, change `SDK_COMMIT` in the `Dockerfile` (or pass
-`--build-arg SDK_COMMIT=<sha>`).
+- Debian bookworm-slim
+- `gcc-arm-none-eabi` 12.2 + newlib, trimmed to the Cortex-M0 libraries
+  (`thumb/v6-m/nofp`). The libraries for every other ARM core, C++ and LTO
+  are removed, which takes the image from 1.4 GB to about 245 MB unpacked
+  (56 MB to download).
+- `make`
+
+It is built for `linux/amd64` and `linux/arm64`, so it runs natively on Apple
+Silicon, Linux and Windows hosts.
+
+### Building it locally
+
+```bash
+docker build -t ghcr.io/e-labinnovations/phy6222-sdk sdk/
+```
+
+### Publishing
+
+[.github/workflows/sdk-image.yml](../.github/workflows/sdk-image.yml) builds
+the image when `sdk/Dockerfile` changes on `main` and pushes it to GHCR, tagged
+`latest` and with the commit's short SHA. It then builds every example in the
+new image. It can also be run by hand from the Actions tab.
 
 ---
 
@@ -33,13 +50,13 @@ To move to a newer SDK, change `SDK_COMMIT` in the `Dockerfile` (or pass
 Run from the **repo root**:
 
 ```bash
-docker run --rm -v "$(pwd)":/src -w /src/examples/panel_id phy6222-sdk make
+docker run --rm -v "$(pwd)":/src -w /src/examples/panel_id ghcr.io/e-labinnovations/phy6222-sdk make
 ```
 
 Windows (PowerShell): `-v "${PWD}:/src"`; cmd.exe: `-v "%cd%:/src"`.
 
-Mount the repo root, not the example directory — every example uses `lib/core`
-and `sdk/phy6222.mk` through `../../`.
+Mount the repo root, not the example directory — every example uses `lib/core`,
+`sdk/phy6222.mk` and the SDK through `../../`.
 
 The output is `examples/<name>/_build/<name>.hex`.
 
@@ -132,14 +149,26 @@ Options for `phy6222.mk`:
 
 ---
 
-## What Was Fixed Compared with the Upstream Repo
+## SDK Contents
+
+`phy6222/` is the `sdk/` directory of
+[amir1387aht/phy6222_smartwatch](https://github.com/amir1387aht/phy6222_smartwatch)
+at commit `02cc0c961d926506ee577454d7bc1286bdb3d803`, unchanged apart from what
+the build never uses:
+
+- `example/` (Phyplus sample projects, 12 MB)
+- `components/ethermind/` (BLE mesh, 6 MB) and `components/coremark/`
+- the Keil `.lib` archives (this build compiles the BLE host from source)
+
+The SDK is © Phyplus Microelectronics; see `phy6222/SDK_LICENSE`.
+
+### Compared with the upstream repo
 
 The upstream project builds on Windows with an older GCC. On Linux and GCC ≥ 14
 it fails; this setup avoids each problem:
 
 | Problem                                                     | Fix                                                         |
 | ----------------------------------------------------------- | ----------------------------------------------------------- |
-| `#include "osal.h"` but the file is `OSAL.h`                | The image adds a lowercase copy                             |
 | `syscalls.c` calls `LOG_INFO`, which no SDK header defines (an error in GCC 14) | `lib/core/syscalls.c` uses `dbg_printf` |
 | Stale `build/*.d` files committed upstream                  | Only `sdk/` is taken from upstream                          |
 | Plain `make` flashes to `COM19` and opens a terminal        | `make` here only builds                                     |

@@ -41,8 +41,8 @@ analyzeHeadless <abs>/ghidra_project LP715_RE -process stock_flash_2.bin -noanal
 ```
 
 - `SetupPHY6222.java` — memory blocks, copies the app SRAM segments, applies the
-  ROM names from the SDK's `misc/bb_rom_sym_m0.txt` (in the Docker image at
-  `/opt/phy6222_sdk/misc/`).
+  ROM names from the SDK's `misc/bb_rom_sym_m0.txt` (in this repo at
+  `sdk/phy6222/misc/`).
 - `FixupPHY6222.java` — seeds functions at every `push {…, lr}` the auto-analysis
   missed, then re-analyses.
 - `DumpAll.java <dir>` — writes `decomp.c` and `functions.txt`.

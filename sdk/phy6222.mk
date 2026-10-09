@@ -12,7 +12,7 @@
 # Output: _build/$(TARGET).hex — flash it with `rdwr_phy62x2.py ... wh`.
 
 ROOT    := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
-SDK     ?= /opt/phy6222_sdk
+SDK     ?= $(ROOT)/sdk/phy6222
 CORE    := $(ROOT)/lib/core
 BUILD_DIR = _build
 

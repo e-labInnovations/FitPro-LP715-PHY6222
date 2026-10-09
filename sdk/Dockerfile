@@ -1,25 +1,28 @@
-# Build environment for PHY6222 firmware: ARM GCC + the Phyplus PHY62x2 SDK.
+# Build environment for PHY6222 firmware: ARM GCC and make, nothing else.
+# The SDK is not in the image: it lives in this repo (sdk/phy6222) and reaches
+# the container through the repo mount, so SDK patches need no image rebuild.
+#
 # gcc-arm-none-eabi is packaged for both amd64 and arm64, so no platform pin is
 # needed — the image runs natively on Apple Silicon, Linux and Windows hosts.
 FROM debian:bookworm-slim
 
-RUN apt-get update && \
-	apt-get install -y --no-install-recommends \
-		gcc-arm-none-eabi libnewlib-arm-none-eabi make python3 git ca-certificates && \
-	rm -rf /var/lib/apt/lists/*
-
-# The SDK comes from amir1387aht/phy6222_smartwatch, pinned so builds are
-# reproducible. Only its sdk/ directory is kept; the app code there is for a
-# different board (ST7735 panel) and our own scaffold lives in lib/core.
-ARG SDK_REPO=https://github.com/amir1387aht/phy6222_smartwatch
-ARG SDK_COMMIT=02cc0c961d926506ee577454d7bc1286bdb3d803
-RUN git clone -q $SDK_REPO /tmp/src && \
-	git -C /tmp/src checkout -q $SDK_COMMIT && \
-	mv /tmp/src/sdk /opt/phy6222_sdk && \
-	rm -rf /tmp/src && \
-	# The repo was built on Windows; some includes differ from the files only in case.
-	cp /opt/phy6222_sdk/components/osal/include/OSAL.h /opt/phy6222_sdk/components/osal/include/osal.h
+# Debian's toolchain ships libraries for every ARM core (~750 MB). The PHY6222
+# is a Cortex-M0, which only ever links thumb/v6-m/nofp, so everything else
+# (including the default ARM-mode libraries at the top level) is deleted in the
+# same layer — along with C++, LTO and the docs.
+RUN set -e; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends gcc-arm-none-eabi libnewlib-arm-none-eabi make; \
+	rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /usr/share/info /usr/share/locale; \
+	gcc=/usr/lib/gcc/arm-none-eabi/*; \
+	newlib=/usr/lib/arm-none-eabi/newlib; \
+	for d in $gcc $newlib; do \
+		rm -rf $d/arm; \
+		find $d/thumb -mindepth 1 -maxdepth 1 ! -name v6-m -exec rm -rf {} +; \
+		rm -f $d/*.a $d/*.o; \
+	done; \
+	rm -rf $gcc/cc1plus $gcc/lto1 $gcc/plugin /usr/bin/arm-none-eabi-lto-dump \
+		/usr/bin/arm-none-eabi-c++ /usr/bin/arm-none-eabi-g++; \
+	arm-none-eabi-gcc -mcpu=cortex-m0 -mthumb -print-multi-directory | grep -qx thumb/v6-m/nofp
 
 WORKDIR /src
-
-ENV SDK=/opt/phy6222_sdk
