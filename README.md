@@ -24,9 +24,10 @@ Full pin map and board notes: [docs/hardware.md](docs/hardware.md).
 - ✅ Display, backlight, graphics and fonts
 - ✅ Touch button (tap, long, very long press)
 - ✅ Vibrator and heart-rate LED
-- ✅ Battery voltage, percentage and charger detection
+- ✅ Battery voltage, percentage, charger detection and fast charging
 - ✅ Motion (shake) detection
-- ✅ BLE: advertises as `LP715` and accepts connections
+- ✅ BLE: battery level, remote buzz / LED / backlight, button and shake events
+  ([examples/ble_ctrl](examples/ble_ctrl/), with a [web remote](tools/ble_ctrl.html))
 - ⏳ Sleep / power saving
 - ⏳ A real watch app
 
@@ -50,6 +51,16 @@ python3 tools/rdwr_phy62x2.py -p /dev/ttyUSB0 -b 500000 -r wh examples/status/_b
 
 Writing your own example: [sdk/README.md](sdk/README.md).
 
+### BLE web remote
+
+Flash `examples/ble_ctrl`, then serve the remote and open it in Chrome or Edge
+(Web Bluetooth needs `localhost` or HTTPS; Safari and Firefox lack it):
+
+```bash
+python3 -m http.server 8000 --directory tools
+# open http://localhost:8000/ble_ctrl.html
+```
+
 ## Repository
 
 | Path              | What                                                      |
@@ -57,7 +68,7 @@ Writing your own example: [sdk/README.md](sdk/README.md).
 | `examples/`       | Small firmware projects, one per feature                  |
 | `lib/`            | Board bring-up (`core`), drivers and BLE                  |
 | `sdk/`            | Build image, shared make rules, PHY62x2 SDK               |
-| `tools/`          | Flashing, stock restore, UART log, image converter        |
+| `tools/`          | Flashing, stock restore, UART log, image converter, BLE web remote |
 | `ghidra_project/` | Ghidra database and scripts for the stock firmware        |
 | `binaries/`       | Stock firmware backup                                     |
 

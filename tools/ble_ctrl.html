@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LP715 Remote</title>
+<!--
+  Web Bluetooth remote for examples/ble_ctrl: buzz, heart-rate LED, backlight,
+  battery level, and the watch's button and shake events.
+  Needs Chrome or Edge (desktop or Android) and a secure origin: serve it with
+    python3 -m http.server 8000 --directory tools
+  and open http://localhost:8000/ble_ctrl.html
+-->
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1b1d21; --muted: #6b7180;
+    --line: #e2e4e9; --accent: #2f6fed; --accent-text: #ffffff;
+    --ok: #16a34a; --warn: #d97706; --bad: #dc2626; --soft: #eef2fd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111317; --card: #1a1d23; --text: #e8eaee; --muted: #8b92a1;
+      --line: #2a2e36; --accent: #5b8cff; --accent-text: #0b0d10;
+      --ok: #34d399; --warn: #fbbf24; --bad: #f87171; --soft: #1f2633;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0; }
+  .status { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .dot.on { background: var(--ok); }
+  .dot.busy { background: var(--warn); }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin-bottom: 12px;
+  }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; }
+  button {
+    font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button.selected { background: var(--soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .battery { display: flex; align-items: center; gap: 14px; }
+  .battery .pct { font-size: 34px; font-weight: 700; min-width: 3.2ch; font-variant-numeric: tabular-nums; }
+  .bar { flex: 1; height: 14px; border-radius: 7px; background: var(--line); overflow: hidden; }
+  .bar > div { height: 100%; width: 0; background: var(--ok); transition: width .4s; }
+  input[type=range] { flex: 1; min-width: 140px; accent-color: var(--accent); }
+  .value { font-variant-numeric: tabular-nums; min-width: 6ch; text-align: right; color: var(--muted); }
+  .levels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; }
+  .counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .count { background: var(--soft); border-radius: 8px; padding: 8px; text-align: center; }
+  .count b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .count span { font-size: 12px; color: var(--muted); }
+  .count.flash { outline: 2px solid var(--accent); }
+  ol#log { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; font-size: 13px; }
+  ol#log li { display: flex; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
+  ol#log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .note { font-size: 13px; color: var(--muted); }
+  .error { color: var(--bad); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>LP715 Remote</h1>
+      <div class="status"><span id="dot" class="dot"></span><span id="status">Not connected</span></div>
+    </div>
+    <button id="connect" class="primary">Connect</button>
+  </header>
+
+  <p id="unsupported" class="card error hidden">
+    This browser has no Web Bluetooth. Use Chrome or Edge on desktop or Android,
+    opened from <code>http://localhost</code> or <code>https://</code>.
+  </p>
+
+  <section class="card">
+    <h2>Battery</h2>
+    <div class="battery">
+      <div class="pct" id="pct">–</div>
+      <div class="bar"><div id="bar"></div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Buzz</h2>
+    <div class="row">
+      <input type="range" id="buzzMs" min="50" max="2000" step="50" value="300">
+      <span class="value" id="buzzMsLabel">300 ms</span>
+      <button class="ctl" id="buzz" disabled>Buzz</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Heart-rate LED</h2>
+    <div class="row">
+      <button class="ctl" id="ledOn" disabled>On</button>
+      <button class="ctl" id="ledOff" disabled>Off</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Backlight</h2>
+    <div class="levels" id="levels"></div>
+  </section>
+
+  <section class="card">
+    <h2>Events from the watch</h2>
+    <div class="counts">
+      <div class="count" id="c1"><b>0</b><span>tap</span></div>
+      <div class="count" id="c2"><b>0</b><span>long</span></div>
+      <div class="count" id="c3"><b>0</b><span>very long</span></div>
+      <div class="count" id="c16"><b>0</b><span>shake</span></div>
+    </div>
+    <ol id="log"></ol>
+  </section>
+
+  <p class="note">
+    Runs <code>examples/ble_ctrl</code>. Commands go to the LP715 service's Control
+    characteristic; events arrive as notifications. See <code>lib/ble/services.h</code>.
+  </p>
+</main>
+
+<script>
+const LP_SERVICE = '4c500001-3731-3500-b000-000000000000';
+const LP_CONTROL = '4c500002-3731-3500-b000-000000000000';
+const LP_EVENTS  = '4c500003-3731-3500-b000-000000000000';
+const EVENT_NAMES = {1: 'tap', 2: 'long press', 3: 'very long press', 16: 'shake'};
+
+const $ = id => document.getElementById(id);
+let device = null, control = null, busy = false;
+
+function setStatus(text, state) {
+  $('status').textContent = text;
+  $('dot').className = 'dot' + (state ? ' ' + state : '');
+}
+
+function setConnected(on) {
+  document.querySelectorAll('.ctl').forEach(b => b.disabled = !on);
+  $('connect').textContent = on ? 'Disconnect' : 'Connect';
+  $('connect').classList.toggle('primary', !on);
+}
+
+function log(text) {
+  const li = document.createElement('li');
+  const t = document.createElement('time');
+  t.textContent = new Date().toLocaleTimeString();
+  li.append(t, document.createTextNode(text));
+  $('log').prepend(li);
+}
+
+function showBattery(pct) {
+  $('pct').textContent = pct + '%';
+  const bar = $('bar');
+  bar.style.width = pct + '%';
+  bar.style.background = pct < 20 ? 'var(--bad)' : pct < 40 ? 'var(--warn)' : 'var(--ok)';
+}
+
+function onEvent(e) {
+  const code = e.target.value.getUint8(0);
+  const box = $('c' + code);
+  if (box) {
+    const n = box.querySelector('b');
+    n.textContent = Number(n.textContent) + 1;
+    box.classList.add('flash');
+    setTimeout(() => box.classList.remove('flash'), 300);
+  }
+  log(EVENT_NAMES[code] || 'event 0x' + code.toString(16));
+}
+
+// One command at a time: the watch takes one per connection event.
+async function send(bytes, label) {
+  if (!control || busy) return;
+  busy = true;
+  try {
+    await control.writeValueWithResponse(new Uint8Array(bytes));
+    log('sent: ' + label);
+  } catch (err) {
+    log('failed: ' + label + ' (' + err.message + ')');
+  } finally {
+    busy = false;
+  }
+}
+
+async function connect() {
+  setStatus('Choose the watch…', 'busy');
+  device = await navigator.bluetooth.requestDevice({
+    filters: [{namePrefix: 'LP715'}],
+    optionalServices: ['battery_service', LP_SERVICE],
+  });
+  device.addEventListener('gattserverdisconnected', onDisconnected);
+  setStatus('Connecting…', 'busy');
+
+  // The watch's first connection after a scan sometimes fails; try a few times.
+  let server;
+  for (let i = 1; ; i++) {
+    try { server = await device.gatt.connect(); break; }
+    catch (err) { if (i === 3) throw err; log('connect attempt ' + i + ' failed, retrying'); }
+  }
+
+  const lp = await server.getPrimaryService(LP_SERVICE);
+  control = await lp.getCharacteristic(LP_CONTROL);
+  const events = await lp.getCharacteristic(LP_EVENTS);
+  events.addEventListener('characteristicvaluechanged', onEvent);
+  await events.startNotifications();
+
+  const batt = await (await server.getPrimaryService('battery_service')).getCharacteristic('battery_level');
+  batt.addEventListener('characteristicvaluechanged', e => showBattery(e.target.value.getUint8(0)));
+  showBattery((await batt.readValue()).getUint8(0));
+  await batt.startNotifications();
+
+  setStatus('Connected to ' + (device.name || 'watch'), 'on');
+  setConnected(true);
+  log('connected');
+}
+
+function onDisconnected() {
+  control = null;
+  setConnected(false);
+  setStatus('Disconnected', '');
+  log('disconnected');
+}
+
+$('connect').addEventListener('click', async () => {
+  if (device && device.gatt.connected) { device.gatt.disconnect(); return; }
+  try { await connect(); }
+  catch (err) {
+    setStatus(err.name === 'NotFoundError' ? 'Not connected' : 'Error: ' + err.message, '');
+    if (err.name !== 'NotFoundError') log('error: ' + err.message);
+  }
+});
+
+$('buzzMs').addEventListener('input', e => $('buzzMsLabel').textContent = e.target.value + ' ms');
+$('buzz').addEventListener('click', () => {
+  const ms = Number($('buzzMs').value);
+  send([0x01, ms & 0xff, ms >> 8], 'buzz ' + ms + ' ms');
+});
+$('ledOn').addEventListener('click', () => send([0x02, 1], 'LED on'));
+$('ledOff').addEventListener('click', () => send([0x02, 0], 'LED off'));
+
+['Off', '1', '2', '3', 'Full'].forEach((name, level) => {
+  const b = document.createElement('button');
+  b.className = 'ctl' + (level === 4 ? ' selected' : '');
+  b.textContent = name;
+  b.disabled = true;
+  b.addEventListener('click', async () => {
+    await send([0x03, level], 'backlight ' + name.toLowerCase());
+    document.querySelectorAll('#levels button').forEach(x => x.classList.toggle('selected', x === b));
+  });
+  $('levels').append(b);
+});
+
+if (!navigator.bluetooth) {
+  $('unsupported').classList.remove('hidden');
+  $('connect').disabled = true;
+}
+</script>
+</body>
+</html>
