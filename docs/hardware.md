@@ -29,7 +29,7 @@ on the watch with a probe program. The code's single source of truth is
 | P18                  | Ball / tilt switch          | Low at rest; bounces on every shake       |
 | P14                  | Battery voltage             | ADC, 1/5.5 divider                        |
 | P15                  | Charger detect              | Active high; only valid with P23 LOW      |
-| P23                  | Charger-related output      | Keep LOW (role not pinned down yet)       |
+| P23                  | Charge enable               | HIGH = fast charge; firmware must stop it at full |
 | P07                  | Factory-test strap          | Read once at boot; LOW = stock test mode  |
 | P09 P10              | UART TX, RX                 | Log output and the flashing port          |
 
@@ -48,7 +48,12 @@ The stock firmware never drives P20, P26, P27 or P33, and never uses I2C.
 - **Battery:** 3.71 V measured on battery, about 3.9 V while charging. In this
   SDK `hal_adc_value_cal()` returns millivolts.
   [lib/power](../lib/power/) gives `battery_mv()`, `battery_percent()` and
-  `charger_present()`. The percentage reads high while charging.
+  `charger_present()`.
+- **Charging:** P23 switches the charger between a trickle (LOW) and fast
+  charge (HIGH). The stock firmware keeps it HIGH while a charger is attached,
+  pauses it to measure the cell, and stops at 4088 mV, so the firmware, not
+  the charger chip, ends the charge. `charge_poll()` in lib/power does the
+  same; with P23 LOW alone a drained cell barely charges.
 
 ## Stock Firmware Layout
 
