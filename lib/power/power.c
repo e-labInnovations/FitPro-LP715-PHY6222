@@ -71,3 +71,47 @@ int battery_percent(int mv) {
 bool charger_present(void) {
     return hal_gpio_read(CHG_DET);
 }
+
+// hal_systick() counts 625 us BLE slots.
+#define MS_TO_TICKS(ms) ((ms) * 8 / 5)
+#define CHARGE_PERIOD MS_TO_TICKS(10000)
+#define CHARGE_SETTLE MS_TO_TICKS(300)
+
+static charge_state_t state = CHARGE_NONE;
+static bool measuring;
+static uint32_t phase_at;
+static int rest_mv = -1;
+
+void charge_poll(void) {
+    uint32_t now = hal_systick();
+    if (!measuring) {
+        // Start a measurement at once on a new charger, then every period.
+        bool due = now - phase_at >= CHARGE_PERIOD || (state == CHARGE_NONE && charger_present());
+        if (!due)
+            return;
+        hal_gpio_write(CHG_CTL, 0);
+        measuring = true;
+        phase_at = now;
+        return;
+    }
+    if (now - phase_at < CHARGE_SETTLE)
+        return;
+    measuring = false;
+    phase_at = now;
+    rest_mv = battery_mv();
+    if (!charger_present())
+        state = CHARGE_NONE;
+    else if (rest_mv >= CHARGE_FULL_MV)
+        state = CHARGE_FULL;
+    else if (state != CHARGE_FULL || rest_mv < CHARGE_FULL_MV - 100)
+        state = CHARGE_ON;   // a full cell only restarts once it has sagged
+    hal_gpio_write(CHG_CTL, state == CHARGE_ON);
+}
+
+charge_state_t charge_state(void) {
+    return state;
+}
+
+int charge_rest_mv(void) {
+    return rest_mv;
+}

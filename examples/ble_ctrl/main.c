@@ -2,7 +2,7 @@
 // lib/ble/services.h. A client can buzz the motor, switch the heart-rate LED
 // and set the backlight, and is notified of taps, long presses and shakes.
 // The screen shows the connection, the battery, the last command and the last
-// event.
+// event. Charging runs through charge_poll().
 #include "app.h"
 #include "ble/ble.h"
 #include "ble/services.h"
@@ -48,12 +48,15 @@ static void show(int baseline, uint16_t color, const char *text, int value, bool
         gfx_print_int(value);
 }
 
+// While charging, battery_mv() reads high; use charge_poll()'s measurement,
+// taken with charging paused.
 static void update_battery(void) {
-    int mv = battery_mv();
+    charge_state_t c = charge_state();
+    int mv = c == CHARGE_NONE ? battery_mv() : charge_rest_mv();
     int pct = mv < 0 ? 0 : battery_percent(mv);
     svc_battery_set(pct);
-    LOG("battery %d mV %d%%", mv, pct);
-    show(ROW_BATTERY, WHITE, "bat ", pct, true);
+    LOG("battery %d mV %d%%, charge %d", mv, pct, c);
+    show(ROW_BATTERY, c == CHARGE_ON ? CYAN : WHITE, c == CHARGE_ON ? "chg " : "bat ", pct, true);
     last_battery = hal_systick();
 }
 
@@ -117,6 +120,7 @@ void app_init(void) {
 
 void app_update(void) {
     vibrate_poll();
+    charge_poll();
 
     ble_state_t s = ble_state();
     if ((int)s != shown_state) {

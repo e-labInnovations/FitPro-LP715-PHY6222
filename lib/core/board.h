@@ -38,9 +38,12 @@
 // CHG_CTL is LOW — on the board P15 follows P23 when no charger is attached.
 #define CHG_DET   GPIO_P15
 
-// Charger-related output, coupled to CHG_DET. The stock firmware keeps it LOW;
-// HIGH while charging lowers the battery reading by ~110 mV. Role not pinned
-// down yet — keep LOW.
+// Charge enable: HIGH = fast charge, LOW = only a trickle. The stock firmware
+// drives it HIGH while a charger is attached, drops it briefly to measure the
+// resting battery voltage, and leaves it LOW once that reaches 4088 mV: it
+// ends the charge itself, so never leave this HIGH unattended. lib/power's
+// charge_poll() does the same. Without a charger P15 follows it, so keep it
+// LOW then.
 #define CHG_CTL   GPIO_P23
 
 // Motion: a ball/tilt switch, LOW at rest with the internal pull-up. Each
