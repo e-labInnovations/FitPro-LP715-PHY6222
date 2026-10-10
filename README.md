@@ -28,7 +28,7 @@ Full pin map and board notes: [docs/hardware.md](docs/hardware.md).
 - ✅ Motion (shake) detection
 - ✅ BLE: battery level, remote buzz / LED / backlight, button and shake events
   ([examples/ble_ctrl](examples/ble_ctrl/), with a [web remote](tools/ble_ctrl.html))
-- ⏳ Sleep / power saving
+- 🟡 Sleep between events (16 MHz builds, e.g. `ble_ctrl`); screen-off and wake-on-button still to do
 - ⏳ A real watch app
 
 ## Quick Start

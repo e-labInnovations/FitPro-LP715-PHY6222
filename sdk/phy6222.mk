@@ -24,8 +24,12 @@ ARCH_FLAGS = -mcpu=cortex-m0 -mthumb
 
 SYS_CLK ?= SYS_CLK_DLL_48M
 
-# OSAL may only put the chip to sleep once lib/core restores state on wake-up;
-# until then a sleeping BLE build reboots about a second after advertising.
+# PWR_MODE_SLEEP lets OSAL sleep between events. It works only together with
+# SYS_CLK=SYS_CLK_XTAL_16M: with the DLL clocks the chip resets during every
+# wake-up, at the end of the SDK's wakeup_init1() (cause not found yet).
+# Peripherals lose their registers in sleep; a driver that keeps one set up
+# must restore it from a hal_pwrmgr_register() wake-up handler (lib/display
+# does this for SPI), and output pins need hal_gpioretention_register().
 SLEEP_MODE ?= PWR_MODE_NO_SLEEP
 
 # 1: LOG() prints. 3 also turns on the SDK's AT_LOG/LOG_DEBUG, which print from

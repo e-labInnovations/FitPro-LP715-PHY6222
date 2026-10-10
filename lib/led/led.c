@@ -2,7 +2,7 @@
 #include "board.h"
 
 void led_init(void) {
-    hal_gpio_pin_init(HR_LED, GPIO_OUTPUT);
+    hal_gpioretention_register(HR_LED);   // output that keeps its level in sleep
     hal_gpio_write(HR_LED, 1);   // off
 }
 

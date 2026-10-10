@@ -9,7 +9,7 @@ static bool running;
 static uint32_t started, length;
 
 void vibrate_init(void) {
-    hal_gpio_pin_init(VIBRATOR, GPIO_OUTPUT);
+    hal_gpioretention_register(VIBRATOR);   // output that keeps its level in sleep
     hal_gpio_write(VIBRATOR, 0);
 }
 

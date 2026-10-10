@@ -27,7 +27,7 @@ static void adc_evt(adc_Evt_t *ev) {
 
 void power_init(void) {
     // CHG_CTL LOW as the stock firmware keeps it; CHG_DET is only valid then.
-    hal_gpio_pin_init(CHG_CTL, GPIO_OUTPUT);
+    hal_gpioretention_register(CHG_CTL);   // output that keeps its level in sleep
     hal_gpio_write(CHG_CTL, 0);
     hal_gpio_pin_init(CHG_DET, GPIO_INPUT);
     hal_gpio_pull_set(CHG_DET, GPIO_PULL_DOWN);

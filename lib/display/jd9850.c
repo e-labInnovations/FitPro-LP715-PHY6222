@@ -2,6 +2,7 @@
 #include "board.h"
 #include "gpio.h"
 #include "spi.h"
+#include "pwrmgr.h"
 #include "clock.h"
 
 // Stock profile 6 init sequence, as {command, data length, data...}.
@@ -41,6 +42,27 @@ static const gpio_pin_e power_pins[] = {LCD_BL_P01, LCD_BL_P02, LCD_BL_P16, LCD_
 
 static hal_spi_t spi = {.spi_index = SPI0};
 
+static const spi_Cfg_t spi_cfg = {
+    .sclk_pin = LCD_SCL,
+    .ssn_pin = GPIO_DUMMY,      // CS is driven by hand, as in the stock firmware
+    .MOSI = LCD_SDA,
+    .MISO = GPIO_DUMMY,
+    .baudrate = 32000000,       // stock value; the SDK clamps it to pclk/2
+    .spi_tmod = SPI_TXD,
+    .spi_scmod = SPI_MODE0,
+    .spi_dfsmod = SPI_8BIT,
+    .int_mode = false,
+    .force_cs = false,
+    .evt_handler = NULL,
+};
+
+// The SPI block loses its registers in sleep; set it up again on wake-up
+// (registered with the power manager, which calls it after each sleep).
+static void spi_wakeup(void) {
+    hal_spi_bus_deinit(&spi);
+    hal_spi_bus_init(&spi, spi_cfg);
+}
+
 #define SSI_SR_BUSY 0x01
 #define SSI_SR_TFNF 0x02
 #define SSI_SR_TFE  0x04
@@ -58,7 +80,7 @@ static inline void spi_put(uint8_t b) {
 
 static void out_pin(gpio_pin_e pin, uint8_t level) {
     hal_gpio_fmux(pin, Bit_DISABLE);
-    hal_gpio_pin_init(pin, GPIO_OUTPUT);
+    hal_gpioretention_register(pin);   // keeps its level while the chip sleeps
     hal_gpio_write(pin, level);
 }
 
@@ -102,20 +124,8 @@ void lcd_init(void) {
     out_pin(LCD_DC, 1);
     out_pin(LCD_RST, 1);
 
-    spi_Cfg_t cfg = {
-        .sclk_pin = LCD_SCL,
-        .ssn_pin = GPIO_DUMMY,      // CS is driven by hand, as in the stock firmware
-        .MOSI = LCD_SDA,
-        .MISO = GPIO_DUMMY,
-        .baudrate = 32000000,       // stock value; the SDK clamps it to pclk/2
-        .spi_tmod = SPI_TXD,
-        .spi_scmod = SPI_MODE0,
-        .spi_dfsmod = SPI_8BIT,
-        .int_mode = false,
-        .force_cs = false,
-        .evt_handler = NULL,
-    };
-    hal_spi_bus_init(&spi, cfg);
+    hal_spi_bus_init(&spi, spi_cfg);
+    hal_pwrmgr_register(MOD_SPI0, NULL, spi_wakeup);
 
     hal_gpio_write(LCD_RST, 0);
     WaitMs(200);
