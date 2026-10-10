@@ -9,7 +9,9 @@
 # e.g. components/driver/adc/adc.c), BLE=1 (run the BLE stack under OSAL; app_update()
 # is then called every 10 ms and must not block — see lib/ble/ble.h),
 # SYS_CLK (system clock, default SYS_CLK_DLL_48M; SYS_CLK_XTAL_16M also works).
-# Output: _build/$(TARGET).hex — flash it with `rdwr_phy62x2.py ... wh`.
+# OTA=1 (layout for the stock OTA bootloader, see below).
+# Output: _build/$(TARGET).hex — flash it with `rdwr_phy62x2.py ... wh`, or
+# with OTA=1 send it over BLE with tools/ble_ota.py.
 
 ROOT    := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 SDK     ?= $(ROOT)/sdk/phy6222
@@ -69,6 +71,21 @@ CFLAGS  = $(ARCH_FLAGS) -Os -g3 -W -Wall -std=gnu99 \
 	-fno-diagnostics-show-caret -MMD -MP $(DEFINES) $(INCLUDES)
 
 LDSCRIPT = $(SDK)/misc/phy6222.ld
+
+# OTA=1 builds for the stock OTA bootloader instead of the boot ROM: XIP code
+# moves from 0x11010100 to 0x11020000, where the bootloader expects the app,
+# leaving the bootloader (0x2000-0x10fff) and the app's SRAM image bank
+# (0x11000) alone. Install it over BLE (tools/ble_ota.py or the web remote),
+# not with `wh`, which would overwrite the bootloader's boot table.
+ifeq ($(OTA),1)
+OTA_LDSCRIPT = $(BUILD_DIR)/phy6222_ota.ld
+$(OTA_LDSCRIPT): $(LDSCRIPT)
+	@mkdir -p $(dir $@)
+	sed 's/ORIGIN = 0x11010100, LENGTH = 0x1ff00/ORIGIN = 0x11020000, LENGTH = 0x5c000/' $< > $@
+	@grep -q 'ORIGIN = 0x11020000' $@
+LDSCRIPT := $(OTA_LDSCRIPT)
+.DEFAULT_GOAL := all
+endif
 LDFLAGS  = $(ARCH_FLAGS) --static -nostartfiles -nostdlib -specs=nosys.specs \
 	-Wl,--gc-sections -Wl,--script=$(LDSCRIPT) \
 	-Wl,--just-symbols=$(SDK)/misc/bb_rom_sym_m0.gcc \

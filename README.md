@@ -28,6 +28,8 @@ Full pin map and board notes: [docs/hardware.md](docs/hardware.md).
 - ✅ Motion (shake) detection
 - ✅ BLE: battery level, remote buzz / LED / backlight, button and shake events
   ([examples/ble_ctrl](examples/ble_ctrl/), with a [web remote](tools/ble_ctrl.html))
+- ✅ Firmware updates over BLE through the stock OTA bootloader, from the web
+  remote or `tools/ble_ota.py` ([docs/flashing.md](docs/flashing.md#over-the-air-ota))
 - 🟡 Sleep between events (16 MHz builds, e.g. `ble_ctrl`); screen-off and wake-on-button still to do
 - ⏳ A real watch app
 
@@ -68,7 +70,7 @@ python3 -m http.server 8000 --directory tools
 | `examples/`       | Small firmware projects, one per feature                  |
 | `lib/`            | Board bring-up (`core`), drivers and BLE                  |
 | `sdk/`            | Build image, shared make rules, PHY62x2 SDK               |
-| `tools/`          | Flashing, stock restore, UART log, image converter, BLE web remote |
+| `tools/`          | UART and BLE (OTA) flashing, stock restore, UART log, image converter, BLE web remote |
 | `ghidra_project/` | Ghidra database and scripts for the stock firmware        |
 | `binaries/`       | Stock firmware backup                                     |
 

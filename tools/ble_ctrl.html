@@ -116,6 +116,22 @@
   </section>
 
   <section class="card">
+    <h2>Firmware update</h2>
+    <p class="note">Needs the stock OTA bootloader on the watch and an app built with
+      <code>OTA=1</code>. Pick <code>examples/&lt;name&gt;/_build/&lt;name&gt;.hex</code>.</p>
+    <div class="row">
+      <input type="file" id="otaFile" accept=".hex">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="otaSend" class="primary" disabled>Update firmware</button>
+      <label class="note"><input type="checkbox" id="otaAll"> Show all devices</label>
+    </div>
+    <div class="bar" style="margin-top:12px"><div id="otaBar"></div></div>
+    <div class="note" id="otaStatus">Choose a file, then Update. If the watch is connected
+      here it restarts into its updater first; pick that (unnamed) device in the list.</div>
+  </section>
+
+  <section class="card">
     <h2>Events from the watch</h2>
     <div class="counts">
       <div class="count" id="c1"><b>0</b><span>tap</span></div>
@@ -259,6 +275,176 @@ $('ledOff').addEventListener('click', () => send([0x02, 0], 'LED off'));
     document.querySelectorAll('#levels button').forEach(x => x.classList.toggle('selected', x === b));
   });
   $('levels').append(b);
+});
+
+// ---- Firmware update over the SDK OTA protocol (see tools/ble_ota.py) ----
+const OTA_SERVICE  = '5833ff01-9b8b-5191-6142-22a4536ef123';
+const OTA_COMMAND  = '5833ff02-9b8b-5191-6142-22a4536ef123';
+const OTA_RESPONSE = '5833ff03-9b8b-5191-6142-22a4536ef123';
+const OTA_DATA     = '5833ff04-9b8b-5191-6142-22a4536ef123';
+const PART_MAX = 0x4000, PACKET = 20;
+// The updater gives up on a partition when no packet arrives for 1 s, and
+// Chrome on macOS can lose or hold back write-without-response packets sent
+// back to back, so pause briefly every few packets.
+const PACE_EVERY = 4, PACE_MS = 20;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let otaParts = null;
+
+const CRC_T = [0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401,
+               0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400];
+function crc16(data) {
+  let crc = 0;
+  for (const b of data) {
+    let t = CRC_T[crc & 0xf]; crc = (crc >> 4) & 0xfff; crc ^= t ^ CRC_T[b & 0xf];
+    t = CRC_T[crc & 0xf]; crc = (crc >> 4) & 0xfff; crc ^= t ^ CRC_T[b >> 4];
+  }
+  return crc;
+}
+
+function readHex(text) {
+  const segs = []; let base = 0;
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.startsWith(':')) continue;
+    const n = parseInt(line.slice(1, 3), 16), addr = parseInt(line.slice(3, 7), 16);
+    const type = parseInt(line.slice(7, 9), 16);
+    const data = [];
+    for (let i = 0; i < n; i++) data.push(parseInt(line.slice(9 + 2 * i, 11 + 2 * i), 16));
+    if (type === 4) base = parseInt(line.slice(9, 13), 16) * 0x10000;
+    else if (type === 0) {
+      const a = base + addr, last = segs[segs.length - 1];
+      if (last && last.addr + last.data.length === a) last.data.push(...data);
+      else segs.push({addr: a, data});
+    }
+  }
+  return segs;
+}
+
+// Same layout as the stock app: XIP partitions where they run, SRAM ones in
+// the app bank (flash 0x11000 + offset), at most 16 KB each.
+function toPartitions(segs) {
+  const parts = []; let bank = 0;
+  for (const {addr, data} of segs) {
+    while (data.length % 4) data.push(0);
+    for (let i = 0; i < data.length; i += PART_MAX) {
+      const chunk = new Uint8Array(data.slice(i, i + PART_MAX)), run = addr + i;
+      if (run >= 0x11000000 && run < 0x11080000) parts.push({flash: run, run, data: chunk});
+      else { parts.push({flash: bank, run, data: chunk}); bank += chunk.length + 8; }
+    }
+  }
+  return parts;
+}
+
+function otaStatus(text, pct) {
+  $('otaStatus').textContent = text;
+  if (pct !== undefined) $('otaBar').style.width = pct + '%';
+}
+
+$('otaFile').addEventListener('change', async e => {
+  otaParts = null; $('otaSend').disabled = true;
+  const file = e.target.files[0];
+  if (!file) return;
+  const parts = toPartitions(readHex(await file.text()));
+  if (!parts.some(p => p.run >= 0x11020000 && p.run < 0x11080000)) {
+    otaStatus('This hex has no code at 0x11020000: build it with OTA=1.', 0);
+    return;
+  }
+  otaParts = parts;
+  const total = parts.reduce((n, p) => n + p.data.length, 0);
+  otaStatus(file.name + ': ' + parts.length + ' partitions, ' + total + ' bytes', 0);
+  $('otaSend').disabled = false;
+});
+
+$('otaSend').addEventListener('click', async () => {
+  if (!otaParts) return;
+  $('otaSend').disabled = true;
+  let dev;
+  try {
+    // A connected app is asked to restart into its updater, which then
+    // advertises as a separate, unnamed device. Chrome lets this click open the
+    // device picker for a few seconds, which is long enough for the restart.
+    if (control) {
+      otaStatus('Restarting the watch into its updater…', 0);
+      await control.writeValueWithResponse(new Uint8Array([0x04]));
+      log('sent: reboot into updater');
+      await sleep(2500);
+    }
+    otaStatus('Pick the updater (the unnamed device)…', 0);
+    // The updater advertises no name or service, only Phyplus manufacturer data.
+    // "Show all devices" for browsers that miss it: pick the unnamed one.
+    dev = await navigator.bluetooth.requestDevice($('otaAll').checked
+      ? {acceptAllDevices: true, optionalServices: [OTA_SERVICE]}
+      : {filters: [{manufacturerData: [{companyIdentifier: 0x0504}]}], optionalServices: [OTA_SERVICE]});
+    let server;
+    for (let i = 1; ; i++) {
+      try { server = await dev.gatt.connect(); break; }
+      catch (err) { if (i === 3) throw err; }
+    }
+    let svc;
+    try { svc = await server.getPrimaryService(OTA_SERVICE); }
+    catch (e) {
+      throw new Error('"' + (dev.name || 'that device') + '" is not the updater. ' +
+        'Press "1. Reboot into updater" first, then pick the unnamed device');
+    }
+    const cmdChar = await svc.getCharacteristic(OTA_COMMAND);
+    const dataChar = await svc.getCharacteristic(OTA_DATA);
+    const rspChar = await svc.getCharacteristic(OTA_RESPONSE);
+    const queue = [], waiters = [];
+    rspChar.addEventListener('characteristicvaluechanged', e => {
+      const v = new Uint8Array(e.target.value.buffer.slice(0));
+      if (waiters.length) waiters.shift()(v); else queue.push(v);
+    });
+    await rspChar.startNotifications();
+    const next = () => queue.length ? Promise.resolve(queue.shift())
+      : new Promise((res, rej) => {
+          waiters.push(res);
+          setTimeout(() => rej(new Error('no answer from the updater')), 30000);
+        });
+    const expect = async want => {
+      for (;;) {
+        const r = await next(), err = r[0], cmd = r.length > 1 ? r[1] : 0xff;
+        if (err) throw new Error('updater error 0x' + err.toString(16) + ' (response 0x' + cmd.toString(16) + ')');
+        if (cmd === want) return;
+        if (cmd !== 0x87) throw new Error('unexpected response 0x' + cmd.toString(16));
+      }
+    };
+    const u32 = v => [v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff];
+
+    const total = otaParts.reduce((n, p) => n + p.data.length, 0);
+    let done = 0;
+    await cmdChar.writeValueWithResponse(new Uint8Array([0x01, otaParts.length, 0xff]));
+    await expect(0x81);
+    for (let i = 0; i < otaParts.length; i++) {
+      const p = otaParts[i];
+      await cmdChar.writeValueWithResponse(new Uint8Array(
+        [0x02, i, ...u32(p.flash), ...u32(p.run), ...u32(p.data.length), ...u32(crc16(p.data))]));
+      await expect(0x84);
+      for (let off = 0; off < p.data.length; off += PACKET) {
+        await dataChar.writeValueWithoutResponse(p.data.slice(off, off + PACKET));
+        done += Math.min(PACKET, p.data.length - off);
+        if ((off / PACKET) % PACE_EVERY === PACE_EVERY - 1) await sleep(PACE_MS);
+        if (queue.length && queue[0][0]) await expect(-1);   // an error arrived mid-partition
+        if (off % 1000 < PACKET)
+          otaStatus('Partition ' + (i + 1) + '/' + otaParts.length + ': ' +
+                    Math.round(100 * done / total) + '%', 100 * done / total);
+      }
+      await expect(i === otaParts.length - 1 ? 0x83 : 0x85);
+    }
+    otaStatus('Done. The watch is restarting with the new firmware.', 100);
+    log('firmware update finished');
+    try { await cmdChar.writeValueWithResponse(new Uint8Array([0x04])); } catch (e) {}
+  } catch (err) {
+    if (err.name === 'SecurityError')
+      otaStatus('The watch is in its updater now; press Update firmware again.');
+    else if (err.name === 'NotFoundError')
+      otaStatus('No device picked. The watch may be in its updater; press Update firmware again.');
+    else
+      otaStatus('Update failed: ' + err.message + '. The watch stays in the updater; try again.');
+    log('update failed: ' + err.message);
+  } finally {
+    if (dev && dev.gatt.connected) dev.gatt.disconnect();
+    $('otaSend').disabled = !otaParts;
+  }
 });
 
 if (!navigator.bluetooth) {

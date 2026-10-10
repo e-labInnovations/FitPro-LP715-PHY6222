@@ -14,6 +14,7 @@
 #include "vibrate/vibrate.h"
 #include "led/led.h"
 #include "motion/motion.h"
+#include "ota.h"
 
 #define WHITE  RGB565(255, 255, 255)
 #define BLACK  RGB565(0, 0, 0)
@@ -87,6 +88,12 @@ static void run_command(void) {
     case SVC_CMD_BACKLIGHT:
         lcd_backlight(cmd[1] > 4 ? 4 : cmd[1]);
         show(ROW_CMD, YELLOW, "light ", cmd[1], true);
+        break;
+    case SVC_CMD_OTA:
+        show(ROW_CMD, YELLOW, "OTA...", 0, false);
+        LOG("rebooting into the OTA bootloader");
+        WaitMs(300);   // let the write response go out first
+        ota_reboot();
         break;
     default:
         show(ROW_CMD, GREY, "cmd ? ", cmd[0], true);

@@ -119,6 +119,7 @@ Options for `phy6222.mk`:
 | `BLE=1`   | Run the BLE stack under OSAL (see `lib/ble/ble.h`); `app_update()` is then called every 10 ms from a timer and must not block |
 | `SYS_CLK` | System clock, default `SYS_CLK_DLL_48M`; `SYS_CLK_XTAL_16M` also works. SPI runs at half of it, so 24 MHz by default |
 | `DEBUG_INFO` | Default 1: `LOG()` prints. 3 also enables the SDK's `AT_LOG`/`LOG_DEBUG`, which print from the radio interrupt and break BLE connections |
+| `OTA` | `1` links the app for the stock OTA bootloader (XIP code at `0x11020000` instead of `0x11010100`). Send it over BLE, not with `wh`; see `docs/flashing.md` |
 | `SLEEP_MODE` | Default `PWR_MODE_NO_SLEEP`. `PWR_MODE_SLEEP` sleeps between OSAL events and works only with `SYS_CLK=SYS_CLK_XTAL_16M` (with the DLL clocks every wake-up resets the chip). Drivers that use a peripheral must restore it after sleep, as `lib/display` does for SPI; see `examples/ble_ctrl` |
 
 ---

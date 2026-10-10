@@ -59,9 +59,11 @@ The stock firmware never drives P20, P26, P27 or P33, and never uses I2C.
 
 | Flash offset | Contents                                            |
 | ------------ | --------------------------------------------------- |
-| `0x2000`     | Boot table → the OTA bootloader                     |
+| `0x2000`     | Boot table → the OTA bootloader (see [flashing.md](flashing.md#over-the-air-ota)) |
 | `0x3000`     | App table: XIP code `0x11020000`–`0x1103c450`, SRAM image loaded from `0x11000` |
 | `0x4000`     | The watch's BLE address, lowest byte first          |
+| `0x5000`–`0x10a77` | OTA bootloader (Phyplus SDK `OTA_internal_flash`) |
+| `0x11000`    | App bank: the app's SRAM image                       |
 
 The Ghidra project and how to rebuild it:
 [ghidra_project/README.md](../ghidra_project/README.md).

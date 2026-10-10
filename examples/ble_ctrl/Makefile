@@ -6,4 +6,6 @@ SDK_EXTRA = components/driver/adc/adc.c
 BLE       = 1
 SYS_CLK   = SYS_CLK_XTAL_16M
 SLEEP_MODE = PWR_MODE_SLEEP
+# Runs from the stock OTA bootloader: update it over BLE (tools/ble_ota.py).
+OTA       = 1
 include ../../sdk/phy6222.mk

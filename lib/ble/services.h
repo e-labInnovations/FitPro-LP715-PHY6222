@@ -9,6 +9,8 @@
 //                         01 lo hi  buzz for lo + hi*256 ms (max 2000)
 //                         02 b      heart-rate LED off (0) / on (1)
 //                         03 n      backlight level 0 (off) .. 4 (full)
+//                         04        reboot into the OTA bootloader (OTA=1
+//                                   builds; see lib/core/ota.h)
 //   Events  4c500003-…  notify, one byte per event (svc_event_t).
 #ifndef BLE_SERVICES_H
 #define BLE_SERVICES_H
@@ -19,6 +21,7 @@ typedef enum {
     SVC_CMD_BUZZ = 0x01,
     SVC_CMD_LED = 0x02,
     SVC_CMD_BACKLIGHT = 0x03,
+    SVC_CMD_OTA = 0x04,
 } svc_cmd_t;
 
 typedef enum {
