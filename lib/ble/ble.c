@@ -18,6 +18,8 @@ static uint8 task;
 static ble_state_t state = BLE_IDLE;
 static char name[GAP_DEVICE_NAME_LEN] = "LP715";
 
+static void (*disconnect_cb)(void);
+
 static uint8 adv_data[31];
 static uint8 scan_rsp[31];
 
@@ -62,6 +64,8 @@ static void on_state(gaprole_States_t s) {
         uint8 on = TRUE;
         GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(on), &on);
         state = BLE_IDLE;
+        if (disconnect_cb)
+            disconnect_cb();
         LOG("ble: disconnected");
         break;
     }
@@ -83,6 +87,10 @@ void ble_set_name(const char *n) {
         name[i] = n[i];
     name[i] = 0;
     build_adv();
+}
+
+void ble_on_disconnect(void (*fn)(void)) {
+    disconnect_cb = fn;
 }
 
 ble_state_t ble_state(void) {

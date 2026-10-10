@@ -149,6 +149,13 @@ void lcd_off(void) {
     write_cmd(0x10, NULL, 0);   // sleep in
 }
 
+void lcd_backlight(int level) {
+    // P17 first: it is the only pin that lights the screen visibly alone.
+    static const gpio_pin_e order[] = {LCD_BL_P17, LCD_BL_P01, LCD_BL_P02, LCD_BL_P16};
+    for (int i = 0; i < 4; i++)
+        hal_gpio_write(order[i], i < level ? 0 : 1);
+}
+
 static inline void put_pixel(uint16_t c) {
     spi_put(c >> 8);
     spi_put(c);

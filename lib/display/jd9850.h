@@ -15,6 +15,9 @@
 void lcd_init(void);
 void lcd_on(void);
 void lcd_off(void);
+// Backlight only, without the panel's sleep commands or delays: level 0 (off)
+// to 4 (full), the number of the four backlight pins driven low.
+void lcd_backlight(int level);
 void lcd_fill_rect(int x, int y, int w, int h, uint16_t color);
 void lcd_fill(uint16_t color);
 void lcd_draw_pixel(int x, int y, uint16_t color);

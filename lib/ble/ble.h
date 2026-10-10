@@ -21,6 +21,10 @@ typedef enum {
 void ble_set_name(const char *name);
 ble_state_t ble_state(void);
 
+// Called once each time a connection ends (one callback; lib/ble/services
+// uses it to drop the client's subscriptions).
+void ble_on_disconnect(void (*fn)(void));
+
 // Used by lib/core.
 void ble_init(uint8 task_id);
 uint16 ble_process_event(uint8 task_id, uint16 events);
